@@ -1,0 +1,70 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Windows.Forms;
+using DB.Api;
+using DB.Extensibility.Contracts;
+
+namespace DB.Extensibility.Scripts
+{
+    public class RunCustomScript : ScriptBase, IScript
+    {
+        
+        public override void OnDesignVariableChanged(int optVarId, string variableCurrentValue)
+        {
+            Site site = ApiEnvironment.Site;
+            Table table = site.GetTable("OptimisationVariables");
+            Record record = table.Records.GetRecordFromHandle(optVarId);
+
+            string optVariableName = record["Name"];
+            // Select action for correct script
+            // Need to match names given to Custom Script type variables
+            // in "OptimisationAnalysis / Variables" dialog
+            if (optVariableName == "Custom Script")
+            {
+                // Actions for first custom script variable
+                // MessageBox.Show(scriptName + " : " + optVarId.ToString() + " ; " +  variableCurrentValue );
+                // Increment Heating Setpoint for "Generic Office Area" by Variable Current Value
+                foreach (BuildingBlock block in ActiveBuilding.BuildingBlocks)
+                {
+                    foreach (Zone zone in block.Zones)
+                    {
+                        int activityId = zone.GetAttributeAsInt("ActivityTemplateId");
+                        if (activityId == 1105)
+                        {
+                            double heatingSetpoint = zone.GetAttributeAsDouble("HeatingDesignSetPointTemperature");                            
+                            heatingSetpoint -= double.Parse(variableCurrentValue);
+
+                            zone.SetAttribute("HeatingDesignSetPointTemperature", heatingSetpoint.ToString());
+                        }
+                    }
+                }
+            }
+            else if (optVariableName == "Custom Script 2")
+            {
+                // Actions for second custom script variable
+                // ... and so on
+
+                // Decrement Cooling Setpoint for "Generic Office Area" by Variable Current Value
+                foreach (BuildingBlock block in ActiveBuilding.BuildingBlocks)
+                {
+                    foreach (Zone zone in block.Zones)
+                    {
+                        int ActivityId = zone.GetAttributeAsInt("ActivityTemplateId");
+                        if (ActivityId == 1105)
+                        {
+                            double coolingSetpoint = zone.GetAttributeAsDouble("ActiveCoolingDesignSetPointTemperature");
+                            coolingSetpoint += double.Parse(variableCurrentValue);
+
+                            zone.SetAttribute("ActiveCoolingDesignSetPointTemperature", coolingSetpoint.ToString());
+
+                            coolingSetpoint = zone.GetAttributeAsDouble("CoolingSetBackSetPointTemperature");
+                            coolingSetpoint += double.Parse(variableCurrentValue);
+                            zone.SetAttribute("CoolingSetBackSetPointTemperature", coolingSetpoint.ToString());
+
+                        }
+                    }
+                }
+            }					 
+        }
+    }
+}
